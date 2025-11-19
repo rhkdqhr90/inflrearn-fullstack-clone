@@ -5,7 +5,7 @@ import { Provider as JotaiProvider } from "jotai";
 
 const queryClient = new QueryClient();
 
-export function Providers({ children }: React.PropsWithChildren) {
+export default function Providers({ children }: React.PropsWithChildren) {
   return (
     <JotaiProvider>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
