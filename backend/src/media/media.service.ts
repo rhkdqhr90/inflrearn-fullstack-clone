@@ -1,0 +1,66 @@
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { Injectable } from '@nestjs/common';
+import { v4 as uuid } from 'uuid';
+import type { Express } from 'express';
+@Injectable()
+export class MediaService {
+  private s3Client: S3Client;
+  private cloudFrontDomain: string;
+
+  constructor() {
+    this.s3Client = new S3Client({
+      region: process.env.AWS_REGION,
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+      },
+    });
+
+    this.cloudFrontDomain = process.env.CLOUDFRONT_DOMAIN!;
+  }
+
+  async uploadMedia(file: Express.Multer.File, userId: string) {
+    const fileExtension = file.originalname.split('.').pop();
+    const key = `media/${userId}/${uuid()}.${fileExtension}`;
+
+    // 한글 파일명을 위한 ContentDisposition 헤더 생성
+    const encodedFileName = encodeURIComponent(file.originalname);
+    const contentDisposition = `attachment; filename="${file.originalname}"; filename*=UTF-8''${encodedFileName}`;
+
+    const res = await this.s3Client.send(
+      new PutObjectCommand({
+        Bucket: process.env.AWS_MEDIA_S3_BUCKET_NAME,
+        Key: key,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+        ContentDisposition: contentDisposition,
+        Metadata: {
+          'original-filename': Buffer.from(file.originalname, 'utf-8').toString(
+            'base64',
+          ),
+        },
+      }),
+    );
+    return {
+      fileName: file.originalname,
+      storageType: 's3',
+      se: {
+        bucket: process.env.AWS_MEDIA_S3_BUCKET_NAME,
+        key,
+        size: res?.Size,
+        region: process.env.AWS_REGION,
+        metadate: {
+          uploadedAt: new Date().toISOString(),
+          contentType: file.mimetype,
+        },
+      },
+      cloudFront: {
+        url: this.getMediaUrl(key),
+      },
+    };
+  }
+
+  getMediaUrl(key: string) {
+    return `https://${this.cloudFrontDomain}/${key}`;
+  }
+}

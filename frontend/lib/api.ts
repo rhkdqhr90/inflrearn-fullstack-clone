@@ -1,62 +1,167 @@
 "use server";
 
-import { cookies } from "next/headers";
-import { getCookie } from "cookies-next/server";
+import {
+  categoriesControllerFindAll,
+  coursesControllerCreate,
+  coursesControllerFindAll,
+  coursesControllerFindOne,
+  coursesControllerUpdate,
+  lecturesControllerCreate,
+  lecturesControllerDelet,
+  lecturesControllerUpdate,
+  mediaControllerUploadMedia,
+  sectionsControllerCreate,
+  sectionsControllerDelete,
+  sectionsControllerUpdate,
+  UpdateCourseDto,
+  UpdateLectureDto,
+} from "@/generated/openapi-client";
 
-const AUTH_COOKIE_NAME =
-  process.env.NODE_ENV === "production"
-    ? "__Secure-authjs.session-token"
-    : "authjs.session-token";
+export const getAllCategories = async () => {
+  const { data, error } = await categoriesControllerFindAll();
 
-const API_URL = process.env.API_URL || "http://localhost:8000";
-
-async function fetchApi<T>(
-  endpoint: string,
-  options: RequestInit = {},
-  token?: string
-) {
-  const headers = {
-    "Content-Type": "application/json",
-    ...(options.headers || {}),
-  } as Record<string, string>;
-
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  const config: RequestInit = {
-    ...options,
-    headers,
-    cache: "no-store",
+  return {
+    data,
+    error,
   };
+};
+export const getAllInstructorCourses = async () => {
+  const { data, error } = await coursesControllerFindAll();
+  return {
+    data,
+    error,
+  };
+};
 
-  if (options.body && typeof options.body !== "string") {
-    config.body = JSON.stringify(options.body);
-  }
+export const getCourseById = async (id: string, include?: string) => {
+  const { data, error } = await coursesControllerFindOne({
+    path: {
+      id,
+    },
+    query: {
+      include: include ?? "sections, lectures",
+    },
+  });
 
-  const response = await fetch(`${API_URL}${endpoint}`, config);
+  return {
+    data,
+    error,
+  };
+};
 
-  if (!response.ok) {
-    throw new Error(`API 요청 실패: ${response.status}`);
-  }
+export const createCourse = async (title: string) => {
+  const { data, error } = await coursesControllerCreate({
+    body: {
+      title,
+    },
+  });
+  return { data, error };
+};
 
-  if (response.status === 204) {
-    return {} as T;
-  }
+export const updateCourse = async (
+  id: string,
+  updateCourseDto: UpdateCourseDto
+) => {
+  const { data, error } = await coursesControllerUpdate({
+    path: {
+      id,
+    },
+    body: updateCourseDto,
+  });
+  return {
+    data,
+    error,
+  };
+};
+export const createSection = async (courseId: string, title: string) => {
+  const { data, error } = await sectionsControllerCreate({
+    path: {
+      courseId,
+    },
+    body: {
+      title,
+    },
+  });
+  return { data, error };
+};
 
-  const contentType = response.headers.get("Content-Type");
-  if (contentType && contentType.includes("application/json")) {
-    return response.json() as Promise<T>;
-  } else {
-    return response.text() as Promise<T>;
-  }
-}
+export const deleteSection = async (sectionId: string) => {
+  const { data, error } = await sectionsControllerDelete({
+    path: {
+      sectionId,
+    },
+  });
+  return { data, error };
+};
 
-export async function getUserTest(token?: string) {
-  // 서버 컴포넌트에서 호출된 경우
-  if (!token && typeof window === "undefined") {
-    token = await getCookie(AUTH_COOKIE_NAME, { cookies });
-  }
+export const createLecture = async (sectionId: string, title: string) => {
+  const { data, error } = await lecturesControllerCreate({
+    path: {
+      sectionId,
+    },
+    body: {
+      title,
+    },
+  });
+  return { data, error };
+};
 
-  return fetchApi<string>("/user-test", {}, token);
-}
+export const deleteLecture = async (lectureId: string) => {
+  const { data, error } = await lecturesControllerDelet({
+    path: {
+      lectureId,
+    },
+  });
+  return { data, error };
+};
+
+export const updateSectionTitle = async (sectionId: string, title: string) => {
+  const { data, error } = await sectionsControllerUpdate({
+    path: {
+      sectionId,
+    },
+    body: {
+      title,
+    },
+  });
+  return { data, error };
+};
+
+export const updateLecturePreview = async (
+  lectureId: string,
+  isPreview: boolean
+) => {
+  const { data, error } = await lecturesControllerUpdate({
+    path: {
+      lectureId,
+    },
+    body: {
+      isPreview,
+    },
+  });
+
+  return { data, error };
+};
+export const updateLecture = async (
+  lectureId: string,
+  updateLectureDto: UpdateLectureDto
+) => {
+  const { data, error } = await lecturesControllerUpdate({
+    path: {
+      lectureId,
+    },
+    body: updateLectureDto,
+  });
+
+  return { data, error };
+};
+
+export const uploadMedia = async (file: File) => {
+  const { data, error } = await mediaControllerUploadMedia({
+    body: {
+      file,
+    },
+  });
+
+  return { data, error };
+};
